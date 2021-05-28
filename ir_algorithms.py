@@ -1,5 +1,5 @@
 import openpyxl # for reading excel files
-import sys
+import re
 
 class Document:
     def __init__(self, doc_id, content, url) -> None:
@@ -42,7 +42,7 @@ class IR:
     def build_inverted_index(self, file_name):
         self.init_file(file_name)
         for doc in self.documents:
-            self.process_document(doc)
+            self.index_document(doc)
         print('Inverted Index Matrix construction completed')
 
 
@@ -64,14 +64,25 @@ class IR:
 
 
     # processing the documents one by one for building the index
-    def process_document(self, doc):
+    def index_document(self, doc):
         tokens = self.get_tokens(doc)
+        counts = self.get_counts_dict(tokens)
+        unique_tokens = counts.keys()
+        for unique_token in unique_tokens:
+            posting = Posting(doc.doc_id, counts[unique_token])
+            self.add_posting(posting, unique_token)
 
     
     # get tokens for each document
     def get_tokens(self, doc):
         text = doc.content
-        tokens = text.split()
+        tokens = re.split('!|,|[|]|{|}|\s|-|_|\(|\)|\.|؟|:|»|«|\(|\)|؛|،', text)
+        tokens = list(filter(None, tokens))
+        return tokens
+
+    
+    # getting a dictionary of unique terms and the frequencies of each term in a list
+    def get_counts_dict(self, tokens):
         counts = dict()
         for token in tokens:
             modified_token = self.modify_token(token)
@@ -79,10 +90,7 @@ class IR:
                 counts[modified_token] = 1
             else:
                 counts[modified_token] += 1
-        unique_tokens = counts.keys()
-        for unique_token in unique_tokens:
-            posting = Posting(doc.doc_id, counts[unique_token])
-            self.add_posting(posting, unique_token)
+        return counts
 
 
     # add posting to the postings_list of the corresponding term in dictionary
