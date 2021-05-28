@@ -137,11 +137,11 @@ class IR:
         return result_ids
 
 
-    # processing queries with multiple words
-    def process_query_mult_words(self, tokens):
+    # processing queries with multiple words - alternative solution using intersection
+    def process_query_mult_words_alt(self, tokens):
         id_lists = []
         pointers = []
-        result_set = dict()
+        result_set = []
         for t in tokens:
             posting_ids = self.get_posting_ids(t)
             id_lists.append(posting_ids)
@@ -152,7 +152,7 @@ class IR:
         terminated = all(x is None for x in pointers)
         while not terminated:
             min_index = len(self.documents) + 1
-            min_pointer = len(pointers)
+            min_pointer_ind = len(pointers)
             for i in range(len(pointers)):
                 if pointers[i] is None:
                     continue
@@ -160,15 +160,40 @@ class IR:
                 pointer = pointers[i]
                 if id_list[pointer] < min_index:
                     min_index = id_list[pointer]
-                    min_pointer = pointer
+                    min_pointer_ind = i
             # found minimum
-            if min_index in result_set:
-                result_set[min_index] += 1
+            if result_set == [] or result_set[len(result_set)-1][0] != min_index:
+                result_set.append([min_index, 1])
             else:
-                result_set[min_index] = 1
+                result_set[len(result_set)-1][1] += 1
             # move min_pointer one step further
-            min_pointer += 1
+            pointers[min_pointer_ind] += 1
+            if pointers[min_pointer_ind] >= len(id_lists[min_pointer_ind]):
+                pointers[min_pointer_ind] = None
             terminated = all(x is None for x in pointers)
+        result_set = sorted(result_set, key=lambda item: item[1], reverse=True)
+        return result_set
+
+
+
+    # processing queries with multiple words
+    def process_query_mult_words(self, tokens):
+        id_lists = []
+        result_set = dict()
+        for t in tokens:
+            posting_ids = self.get_posting_ids(t)
+            id_lists.append(posting_ids)
+        for id_list in id_lists:
+            for item in id_list:
+                if item not in result_set:
+                    result_set[item] = 1
+                else:
+                    result_set[item] += 1
+        result_set = sorted(result_set.items(), key=lambda item: (-item[1], item[0]))
+        for item in result_set:
+            index = item[0]
+            print(self.documents[index - 1].doc_id, self.documents[index - 1].url)
+        return result_set
 
 
 
@@ -181,7 +206,4 @@ class IR:
             for p in postings:
                 ids.append(p.doc_id)
         return ids
-        
-
-        
         
