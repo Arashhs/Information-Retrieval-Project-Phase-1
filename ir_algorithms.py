@@ -14,7 +14,7 @@ class Posting:
         self.freq = freq
 
     def __str__(self) -> str:
-        return 'doc_id: ' + self.doc_id + '\tfreq: ' + self.freq
+        return 'doc_id: ' + str(self.doc_id) + '\tfreq: ' + str(self.freq)
 
     def __repr__(self) -> str:
         return str(self)
@@ -26,7 +26,7 @@ class PostingsList:
         self.term_freq = 0
 
     def __str__(self) -> str:
-        return 'term_freq: ' + self.term_freq + '\t' + str(self.plist)
+        return 'term_freq: ' + str(self.term_freq) + '\t' + str(self.plist)
 
     def __repr__(self) -> str:
         return str(self)
@@ -65,7 +65,7 @@ class IR:
 
     # processing the documents one by one for building the index
     def index_document(self, doc):
-        tokens = self.get_tokens(doc)
+        tokens = self.get_tokens(doc.content)
         counts = self.get_counts_dict(tokens)
         unique_tokens = counts.keys()
         for unique_token in unique_tokens:
@@ -74,8 +74,7 @@ class IR:
 
     
     # get tokens for each document
-    def get_tokens(self, doc):
-        text = doc.content
+    def get_tokens(self, text):
         tokens = re.split('!|,|[|]|{|}|\s|-|_|\(|\)|\.|؟|:|»|«|\(|\)|؛|،', text)
         tokens = list(filter(None, tokens))
         return tokens
@@ -115,6 +114,74 @@ class IR:
         #
         return token
 
+
+    # processing queries
+    def process_query(self, query):
+        tokens = self.get_tokens(query)
+        if len(tokens) == 1:
+            self.process_query_single_word(query)
+        elif len(tokens) > 1:
+            self.process_query_mult_words(tokens)
+        else:
+            print('Query is not valid; please make sure your query contains words.')
+    
+
+    # processing queries with only one word
+    def process_query_single_word(self, query):
+        result_ids = self.get_posting_ids(query)
+        if len(result_ids) == 0:
+            print("No result found!")
+        else:
+            for index in result_ids:
+                print(self.documents[index - 1].doc_id, self.documents[index - 1].url)
+        return result_ids
+
+
+    # processing queries with multiple words
+    def process_query_mult_words(self, tokens):
+        id_lists = []
+        pointers = []
+        result_set = dict()
+        for t in tokens:
+            posting_ids = self.get_posting_ids(t)
+            id_lists.append(posting_ids)
+            if len(posting_ids) > 0:
+                pointers.append(0)
+            else:
+                pointers.append(None)
+        terminated = all(x is None for x in pointers)
+        while not terminated:
+            min_index = len(self.documents) + 1
+            min_pointer = len(pointers)
+            for i in range(len(pointers)):
+                if pointers[i] is None:
+                    continue
+                id_list = id_lists[i]
+                pointer = pointers[i]
+                if id_list[pointer] < min_index:
+                    min_index = id_list[pointer]
+                    min_pointer = pointer
+            # found minimum
+            if min_index in result_set:
+                result_set[min_index] += 1
+            else:
+                result_set[min_index] = 1
+            # move min_pointer one step further
+            min_pointer += 1
+            terminated = all(x is None for x in pointers)
+
+
+
+    # getting document IDs for a given term
+    def get_posting_ids(self, term):
+        ids = []
+        if term in self.dictionary:
+            postings_list = self.dictionary[term]
+            postings = postings_list.plist
+            for p in postings:
+                ids.append(p.doc_id)
+        return ids
+        
 
         
         
