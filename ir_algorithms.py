@@ -1,5 +1,7 @@
 import openpyxl # for reading excel files
-import re
+import re, pickle
+
+unique_list = []
 
 class Document:
     def __init__(self, doc_id, content, url) -> None:
@@ -44,6 +46,7 @@ class IR:
         for doc in self.documents:
             self.index_document(doc)
         print('Inverted Index Matrix construction completed')
+        print(unique_list)
 
 
     # initializing documents list by reading the excel dataset
@@ -112,6 +115,10 @@ class IR:
         #
         #
         #
+        m = re.findall(r"^ب[ا-ی]*ید$", token)
+        if m:
+            if m[0] not in unique_list:
+                unique_list.append(m[0])
         return token
 
 
