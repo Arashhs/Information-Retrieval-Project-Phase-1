@@ -1,7 +1,8 @@
 import openpyxl # for reading excel files
-import re, pickle
+import re, pickle, numpy as np
 
-unique_list = []
+frequent_terms_num = 50 # removing # of most frequent terms from dictionary
+
 
 class Document:
     def __init__(self, doc_id, content, url) -> None:
@@ -46,7 +47,16 @@ class IR:
         for doc in self.documents:
             self.index_document(doc)
         print('Inverted Index Matrix construction completed')
-        print(unique_list)
+        # saving the dictionary
+        with open('index.pickle', 'wb') as handle:
+            pickle.dump(self.dictionary, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    
+    # loading the existing inverted index from file
+    def load_inverted_index(self):
+        with open('index.pickle', 'rb') as handle:
+            self.dictionary = pickle.load(handle)
+
 
 
     # initializing documents list by reading the excel dataset
@@ -115,10 +125,10 @@ class IR:
         #
         #
         #
-        m = re.findall(r"^ب[ا-ی]*ید$", token)
-        if m:
-            if m[0] not in unique_list:
-                unique_list.append(m[0])
+        # m = re.findall(r"^ب[ا-ی]*ید$", token)
+        # if m:
+        #     if m[0] not in unique_list:
+        #         unique_list.append(m[0])
         return token
 
 
@@ -213,4 +223,10 @@ class IR:
             for p in postings:
                 ids.append(p.doc_id)
         return ids
+
+
+    # removing k most frequent term from dictionary
+    def remove_frequents(self, k):
+        pass
+
         
