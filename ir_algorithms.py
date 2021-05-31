@@ -39,6 +39,7 @@ class IR:
     def __init__(self) -> None:
         self.dictionary = dict()
         self.documents = None
+        self.docs_dict = dict()
 
     
     # building the inverted index
@@ -47,15 +48,27 @@ class IR:
         for doc in self.documents:
             self.index_document(doc)
         print('Inverted Index Matrix construction completed')
+        self.build_docs_dict()
         # saving the dictionary
         with open('index.pickle', 'wb') as handle:
             pickle.dump(self.dictionary, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open('docs_dict.pickle', 'wb') as handle:
+            pickle.dump(self.docs_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+    # building a dictionary mapping documents IDs to URL
+    def build_docs_dict(self):
+        for doc in self.documents:
+            self.docs_dict[doc.doc_id] = doc.url
+
 
     
     # loading the existing inverted index from file
     def load_inverted_index(self):
         with open('index.pickle', 'rb') as handle:
             self.dictionary = pickle.load(handle)
+        with open('docs_dict.pickle', 'rb') as handle:
+            self.docs_dict = pickle.load(handle)
 
 
 
@@ -150,7 +163,7 @@ class IR:
             print("No result found!")
         else:
             for index in result_ids:
-                print(self.documents[index - 1].doc_id, self.documents[index - 1].url)
+                print(index, self.docs_dict[index])
         return result_ids
 
 
@@ -207,9 +220,13 @@ class IR:
                 else:
                     result_set[item] += 1
         result_set = sorted(result_set.items(), key=lambda item: (-item[1], item[0]))
+        last_count = 0
         for item in result_set:
+            if last_count != item[1]:
+                print('\nNumber of Words:', item[1])
+                last_count = item[1]
             index = item[0]
-            print(self.documents[index - 1].doc_id, self.documents[index - 1].url)
+            print(index, self.docs_dict[index])
         return result_set
 
 

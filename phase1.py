@@ -14,7 +14,7 @@ def main():
             ir_system.load_inverted_index()
             query = input("Enter your query: ")
             ir_system.process_query(query)
-        print('done')
+        print('\ndone\n')
 
 
 
