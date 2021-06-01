@@ -1,7 +1,11 @@
 import openpyxl # for reading excel files
-import re, pickle, numpy as np
+import re, regex, pickle, numpy as np
+import heapq
 
-frequent_terms_num = 50 # removing # of most frequent terms from dictionary
+frequent_terms_num = 70 # removing # of most frequent terms from dictionary
+
+arabic_persian_chars = [['ي|ئ', 'ی'], ['ك', 'ک'], ['ة', 'ه'], ['ؤ', 'و'],\
+             ['آ|أ|ٱ|إ', 'ا'], ['ء', '']]
 
 
 class Document:
@@ -34,6 +38,12 @@ class PostingsList:
     def __repr__(self) -> str:
         return str(self)
 
+    def __lt__(self, other):
+        return self.term_freq < other.term_freq
+
+    
+    
+
 
 class IR:
     def __init__(self) -> None:
@@ -49,6 +59,8 @@ class IR:
             self.index_document(doc)
         print('Inverted Index Matrix construction completed')
         self.build_docs_dict()
+        # removing most frequent items
+        self.remove_frequents(frequent_terms_num)
         # saving the dictionary
         with open('index.pickle', 'wb') as handle:
             pickle.dump(self.dictionary, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -101,8 +113,14 @@ class IR:
     
     # get tokens for each document
     def get_tokens(self, text):
-        tokens = re.split('!|,|[|]|{|}|\s|-|_|\(|\)|\.|؟|:|»|«|\(|\)|؛|،', text)
+        '''
+        tokens = re.split('!|,|[|]|\{|\}|\s|-|_|\(|\)|\.|؟|:|»|«|\(|\)|؛|،|\*|&|\
+            \^|%|\$|#|@|~|\\|\"|"|\'|;|>|<|\||=|\+|\?', text)
         tokens = list(filter(None, tokens))
+        '''
+        tokens = regex.findall(r'[\p{Cf}\p{L}]+', text)
+        # modifying tokens
+        tokens = [self.modify_token(token) for token in tokens if self.modify_token(token) != '']
         return tokens
 
     
@@ -110,11 +128,10 @@ class IR:
     def get_counts_dict(self, tokens):
         counts = dict()
         for token in tokens:
-            modified_token = self.modify_token(token)
-            if modified_token not in counts:
-                counts[modified_token] = 1
+            if token not in counts:
+                counts[token] = 1
             else:
-                counts[modified_token] += 1
+                counts[token] += 1
         return counts
 
 
@@ -142,14 +159,29 @@ class IR:
         # if m:
         #     if m[0] not in unique_list:
         #         unique_list.append(m[0])
-        return token
+        # removing stop words
+        #if len(token) < 3:
+        #    return ''
+        result = self.normalize(token)
+        return result
+
+
+    # normalize the given token
+    def normalize(self, token):
+        # normalizing characters
+        result = token
+        # list of [Arabic_character, Persian_character]
+        global arabic_persian_chars
+        for char_set in arabic_persian_chars:
+            result = re.sub(char_set[0], char_set[1], result)
+        return result
 
 
     # processing queries
     def process_query(self, query):
         tokens = self.get_tokens(query)
         if len(tokens) == 1:
-            self.process_query_single_word(query)
+            self.process_query_single_word(tokens[0])
         elif len(tokens) > 1:
             self.process_query_mult_words(tokens)
         else:
@@ -244,6 +276,8 @@ class IR:
 
     # removing k most frequent term from dictionary
     def remove_frequents(self, k):
-        pass
+        most_frequent = heapq.nlargest(k, self.dictionary, key=self.dictionary.get)
+        for key in most_frequent:
+            del self.dictionary[key]
 
         
