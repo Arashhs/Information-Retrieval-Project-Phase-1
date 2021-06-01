@@ -4,8 +4,8 @@ import heapq
 
 frequent_terms_num = 70 # removing # of most frequent terms from dictionary
 
-arabic_persian_chars = [['ي|ئ', 'ی'], ['ك', 'ک'], ['ة', 'ه'], ['ؤ', 'و'],\
-             ['آ|أ|ٱ|إ', 'ا'], ['ء', '']]
+arabic_persian_chars = [['ي', 'ی'], ['ئ', 'ی'], ['ك', 'ک'], ['ة', 'ه'], ['ؤ', 'و'],\
+             ['آ', 'ا'], ['إ', 'ا'], ['أ', 'ا'], ['ٱ', 'ا'], ['ء', '']]
 
 
 class Document:
@@ -172,8 +172,15 @@ class IR:
         result = token
         # list of [Arabic_character, Persian_character]
         global arabic_persian_chars
+        for i in range(len(arabic_persian_chars)):
+            if arabic_persian_chars[i][0] in token:
+                result = result.replace(arabic_persian_chars[i][0], arabic_persian_chars[i][1])
+        '''
         for char_set in arabic_persian_chars:
             result = re.sub(char_set[0], char_set[1], result)
+        '''
+        if not token.isalnum() and '\u200c' not in token and '\xad' not in token:
+            print(token)
         return result
 
 
