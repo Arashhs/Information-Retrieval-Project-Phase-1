@@ -6,7 +6,30 @@ frequent_terms_num = 70 # removing # of most frequent terms from dictionary
 
 arabic_persian_chars = [['ي', 'ی'], ['ئ', 'ی'], ['ك', 'ک'], ['ة', 'ه'], ['ؤ', 'و'],\
              ['آ', 'ا'], ['إ', 'ا'], ['أ', 'ا'], ['ٱ', 'ا'], ['ء', '']]
+arabic_plurals_file = 'arabic_plurals.txt'
 
+
+# Print iterations progress
+def print_progress_bar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
 
 class Document:
     def __init__(self, doc_id, content, url) -> None:
@@ -50,13 +73,21 @@ class IR:
         self.dictionary = dict()
         self.documents = None
         self.docs_dict = dict()
+        self.arabic_plurals_dict = dict()
 
     
     # building the inverted index
     def build_inverted_index(self, file_name):
+        global arabic_plurals_file
         self.init_file(file_name)
+        # initializing arabic_plurals stemming dictionary
+        self.init_arabic_plurals(arabic_plurals_file)
+        indexed_docs_num = 0
+        print('Indexing documents...')
         for doc in self.documents:
+            print_progress_bar(indexed_docs_num/len(self.documents), 1, prefix = 'Progress:', suffix = 'Complete', length = 50)
             self.index_document(doc)
+            indexed_docs_num += 1
         print('Inverted Index Matrix construction completed')
         self.build_docs_dict()
         # removing most frequent items
@@ -81,11 +112,13 @@ class IR:
             self.dictionary = pickle.load(handle)
         with open('docs_dict.pickle', 'rb') as handle:
             self.docs_dict = pickle.load(handle)
+        self.init_arabic_plurals(arabic_plurals_file)
 
 
 
     # initializing documents list by reading the excel dataset
     def init_file(self, file_name):
+        print('Initializing documents using Excel file...')
         wb_obj = openpyxl.load_workbook(file_name)
         sheet = wb_obj.active
         headers = []
@@ -113,14 +146,25 @@ class IR:
     
     # get tokens for each document
     def get_tokens(self, text):
+        persian_letters = r'[آابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهیئؤأإةيكء]+'
         '''
         tokens = re.split('!|,|[|]|\{|\}|\s|-|_|\(|\)|\.|؟|:|»|«|\(|\)|؛|،|\*|&|\
             \^|%|\$|#|@|~|\\|\"|"|\'|;|>|<|\||=|\+|\?', text)
         tokens = list(filter(None, tokens))
         '''
-        tokens = regex.findall(r'[\p{Cf}\p{L}]+', text)
+        # tokens = regex.findall(r'[\p{Cf}\p{L}]+', text)
+        tokens = re.findall(persian_letters,text)
         # modifying tokens
-        tokens = [self.modify_token(token) for token in tokens if self.modify_token(token) != '']
+        # tokens2 = [self.modify_token(token) for token in tokens if self.modify_token(token) != '']
+        i = 0
+        for token in tokens[:]:
+            modified_token = self.modify_token(token)
+            if len(modified_token) > 1 and modified_token != '':
+                tokens[i] = modified_token
+            else:
+                del(tokens[i])
+                i -= 1
+            i += 1
         return tokens
 
     
@@ -163,6 +207,7 @@ class IR:
         #if len(token) < 3:
         #    return ''
         result = self.normalize(token)
+        result = self.stem(result)
         return result
 
 
@@ -179,9 +224,15 @@ class IR:
         for char_set in arabic_persian_chars:
             result = re.sub(char_set[0], char_set[1], result)
         '''
-        if not token.isalnum() and '\u200c' not in token and '\xad' not in token:
-            print(token)
         return result
+
+    # stemming words and verbs
+    def stem(self, token):
+        result = token
+        if token in self.arabic_plurals_dict:
+            result = self.arabic_plurals_dict[token]
+        return result
+
 
 
     # processing queries
@@ -260,12 +311,15 @@ class IR:
                     result_set[item] += 1
         result_set = sorted(result_set.items(), key=lambda item: (-item[1], item[0]))
         last_count = 0
-        for item in result_set:
-            if last_count != item[1]:
-                print('\nNumber of Words:', item[1])
-                last_count = item[1]
-            index = item[0]
-            print(index, self.docs_dict[index])
+        if len(result_set) == 0:
+            print("No result found!")
+        else:
+            for item in result_set:
+                if last_count != item[1]:
+                    print('\nNumber of Words:', item[1])
+                    last_count = item[1]
+                index = item[0]
+                print(index, self.docs_dict[index])
         return result_set
 
 
@@ -287,4 +341,12 @@ class IR:
         for key in most_frequent:
             del self.dictionary[key]
 
+    
+    # initializing arabic_plurals_dict
+    def init_arabic_plurals(self, file_name):
+        with open(file_name, 'r', encoding='utf-8') as reader:
+            for line in reader:
+                words = line.split()
+                (singular, plural) = (self.normalize(words[0]), self.normalize(words[1]))
+                self.arabic_plurals_dict[plural] = singular
         
