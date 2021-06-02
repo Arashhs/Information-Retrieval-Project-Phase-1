@@ -8,21 +8,18 @@ arabic_persian_chars = [['ي', 'ی'], ['ئ', 'ی'], ['ك', 'ک'], ['ة', 'ه'], 
              ['آ', 'ا'], ['إ', 'ا'], ['أ', 'ا'], ['ٱ', 'ا'], ['ء', '']]
 arabic_plurals_file = 'arabic_plurals.txt'
 
+# end_words = ['ان', 'ات', 'تر', 'تری', 'ترین', 'م', 'ت', 'ش', 'یی', 'ی', 'ها', 'ا']
+end_words = ['ات', 'تر', 'تری', 'ترین', 'یی', 'ی', 'ها']
+
+prefixes = ['ابر', 'باز', 'پاد', 'پارا', 'پسا', 'پیرا', 'ترا', 'فرا', 'هم', 'فرو']
+postfixes = ['اسا', 'آگین', 'گین', 'ومند', 'اک', 'اله', 'انه', 'ین'\
+    'ینه', 'دان', 'کار' , 'دیس', 'زار', 'سار', 'ستان', 'سرا', 'فام', 'کده', 'گار', \
+        'گان', 'گری', 'گر', 'گون', 'لاخ', 'مان', 'مند', 'ناک', 'نده', 'وار', 'واره',\
+            'واری', 'ور', 'وش', 'ار', 'ان']
+
 
 # Print iterations progress
 def print_progress_bar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        length      - Optional  : character length of bar (Int)
-        fill        - Optional  : bar fill character (Str)
-        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
-    """
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
     bar = fill * filledLength + '-' * (length - filledLength)
@@ -228,10 +225,20 @@ class IR:
 
     # stemming words and verbs
     def stem(self, token):
-        result = token
+        # removing postfixes
+        for end in end_words:
+            if token.endswith(end):
+                token = token[:-len(end)]
+        for post in postfixes:
+            if token.endswith(post):
+                token = token[:-len(post)]
+        for pre in prefixes:
+            if token.startswith(pre):
+                token = token[len(pre):]
+        # stemming arabic plurals
         if token in self.arabic_plurals_dict:
-            result = self.arabic_plurals_dict[token]
-        return result
+            token = self.arabic_plurals_dict[token]
+        return token
 
 
 
