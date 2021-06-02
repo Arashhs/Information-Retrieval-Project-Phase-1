@@ -4,9 +4,11 @@ import heapq
 
 frequent_terms_num = 70 # removing # of most frequent terms from dictionary
 
+arabic_plurals_file = 'arabic_plurals.txt'
+verbs_stems_file = 'verbs_stems.txt'
+
 arabic_persian_chars = [['ي', 'ی'], ['ئ', 'ی'], ['ك', 'ک'], ['ة', 'ه'], ['ؤ', 'و'],\
              ['آ', 'ا'], ['إ', 'ا'], ['أ', 'ا'], ['ٱ', 'ا'], ['ء', '']]
-arabic_plurals_file = 'arabic_plurals.txt'
 
 # end_words = ['ان', 'ات', 'تر', 'تری', 'ترین', 'م', 'ت', 'ش', 'یی', 'ی', 'ها', 'ا']
 end_words = ['ات', 'تر', 'تری', 'ترین', 'یی', 'ی', 'ها']
@@ -16,6 +18,8 @@ postfixes = ['اسا', 'آگین', 'گین', 'ومند', 'اک', 'اله', 'ان
     'ینه', 'دان', 'کار' , 'دیس', 'زار', 'سار', 'ستان', 'سرا', 'فام', 'کده', 'گار', \
         'گان', 'گری', 'گر', 'گون', 'لاخ', 'مان', 'مند', 'ناک', 'نده', 'وار', 'واره',\
             'واری', 'ور', 'وش', 'ار', 'ان']
+
+past_verb_post = ['م', 'ی', '' , 'یم', 'ید', 'ند']
 
 
 # Print iterations progress
@@ -71,14 +75,17 @@ class IR:
         self.documents = None
         self.docs_dict = dict()
         self.arabic_plurals_dict = dict()
+        self.verbs_dict = dict()
 
     
     # building the inverted index
     def build_inverted_index(self, file_name):
-        global arabic_plurals_file
+        global arabic_plurals_file, verbs_stems_file
         self.init_file(file_name)
         # initializing arabic_plurals stemming dictionary
         self.init_arabic_plurals(arabic_plurals_file)
+        # initializing verb to verb-stems dictionary
+        self.init_verbs_dict(verbs_stems_file)
         indexed_docs_num = 0
         print('Indexing documents...')
         for doc in self.documents:
@@ -110,6 +117,7 @@ class IR:
         with open('docs_dict.pickle', 'rb') as handle:
             self.docs_dict = pickle.load(handle)
         self.init_arabic_plurals(arabic_plurals_file)
+        self.init_verbs_dict(verbs_stems_file)
 
 
 
@@ -203,9 +211,9 @@ class IR:
         # removing stop words
         #if len(token) < 3:
         #    return ''
-        result = self.normalize(token)
-        result = self.stem(result)
-        return result
+        token = self.normalize(token)
+        token = self.stem(token)
+        return token
 
 
     # normalize the given token
@@ -225,6 +233,9 @@ class IR:
 
     # stemming words and verbs
     def stem(self, token):
+        # stemming verbs
+        if token in self.verbs_dict:
+            token = self.verbs_dict[token]
         # removing postfixes
         for end in end_words:
             if token.endswith(end):
@@ -239,7 +250,6 @@ class IR:
         if token in self.arabic_plurals_dict:
             token = self.arabic_plurals_dict[token]
         return token
-
 
 
     # processing queries
@@ -356,4 +366,49 @@ class IR:
                 words = line.split()
                 (singular, plural) = (self.normalize(words[0]), self.normalize(words[1]))
                 self.arabic_plurals_dict[plural] = singular
+
+
+    # generating all verb tenses
+    def generate_verb_tenses(self, verb_root):
+        # past verbs
+        tenses = set()
+        past_verb_posts = ['م', 'ی', '' , 'یم', 'ید', 'ند']
+        past_root, present_root = verb_root.split(r'$')
+        (present_root, past_root) = (self.normalize(present_root), self.normalize(past_root))
+        if present_root == 'هست':
+            for post in past_verb_posts:
+                tenses.add(present_root + post)
+                tenses.add('نیست' + post)
+            return tenses
+        for post in past_verb_posts:
+            tenses.add(past_root + post)
+            tenses.add('ن' + past_root + post)
+            tenses.add('می' + past_root + post)
+            tenses.add('نمی' + past_root + post)
+        # present verbs
+        present_verb_posts = ['م', 'ی', 'د', 'یم', 'ید', 'ند']
+        if present_root == 'ا' or present_root == 'گو' or present_root.endswith('ا'):
+            present_root = present_root + 'ی'
+        for post in present_verb_posts:
+            tenses.add(present_root + post)
+            tenses.add('می' + present_root + post)
+            tenses.add('نمی' + present_root + post)
+            # imperatives
+            tenses.add('ب' + present_root + post)
+            tenses.add('ن' + present_root + post)
+        # Masdar
+        tenses.add(past_root + 'ن')
+        # perfect present
+        tenses.add(past_root + 'ه')
+        return tenses
+
+
+    # building dictionary for stemming verbs
+    def init_verbs_dict(self, file_name):
+        with open(file_name, 'r', encoding='utf-8') as reader:
+            for line in reader:
+                verb_root = line.split()[0]
+                tenses = self.generate_verb_tenses(verb_root)
+                for tense in tenses:
+                    self.verbs_dict[tense] = verb_root             
         
