@@ -2,7 +2,8 @@ import openpyxl # for reading excel files
 import re, regex, pickle, numpy as np
 import heapq
 
-frequent_terms_num = 70 # removing # of most frequent terms from dictionary
+frequent_terms_num = 20 # removing # of most frequent terms from dictionary
+max_results_num = 20 # maximum number of results to show
 
 arabic_plurals_file = 'arabic_plurals.txt'
 verbs_stems_file = 'verbs_stems.txt'
@@ -97,10 +98,14 @@ class IR:
         # removing most frequent items
         self.remove_frequents(frequent_terms_num)
         # saving the dictionary
-        with open('index.pickle', 'wb') as handle:
+        with open('data\\index.pickle', 'wb') as handle:
             pickle.dump(self.dictionary, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        with open('docs_dict.pickle', 'wb') as handle:
+        with open('data\\docs_dict.pickle', 'wb') as handle:
             pickle.dump(self.docs_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open('data\\arabic_plurals_dict.pickle', 'wb') as handle:
+            pickle.dump(self.arabic_plurals_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open('data\\verbs_stems_dict.pickle', 'wb') as handle:
+            pickle.dump(self.verbs_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
     # building a dictionary mapping documents IDs to URL
@@ -112,12 +117,14 @@ class IR:
     
     # loading the existing inverted index from file
     def load_inverted_index(self):
-        with open('index.pickle', 'rb') as handle:
+        with open('data\\index.pickle', 'rb') as handle:
             self.dictionary = pickle.load(handle)
-        with open('docs_dict.pickle', 'rb') as handle:
+        with open('data\\docs_dict.pickle', 'rb') as handle:
             self.docs_dict = pickle.load(handle)
-        self.init_arabic_plurals(arabic_plurals_file)
-        self.init_verbs_dict(verbs_stems_file)
+        with open('data\\arabic_plurals_dict.pickle', 'rb') as handle:
+            self.arabic_plurals_dict = pickle.load(handle)
+        with open('data\\verbs_stems_dict.pickle', 'rb') as handle:
+            self.verbs_dict = pickle.load(handle)
 
 
 
@@ -236,6 +243,7 @@ class IR:
         # stemming verbs
         if token in self.verbs_dict:
             token = self.verbs_dict[token]
+            return token
         # removing postfixes
         for end in end_words:
             if token.endswith(end):
@@ -269,8 +277,13 @@ class IR:
         if len(result_ids) == 0:
             print("No result found!")
         else:
+            showed_result_count = 0
+            print('Found ' + str(len(result_ids)) + ' Results: (Showing at max ' + str(max_results_num) + ')')
             for index in result_ids:
+                if showed_result_count >= max_results_num:
+                    break
                 print(index, self.docs_dict[index])
+                showed_result_count += 1
         return result_ids
 
 
@@ -331,12 +344,17 @@ class IR:
         if len(result_set) == 0:
             print("No result found!")
         else:
+            print('Found ' + str(len(result_set)) + ' Results: (Showing at max ' + str(max_results_num) + ')')
+            showed_results_num = 0
             for item in result_set:
+                if showed_results_num >= max_results_num:
+                    break
                 if last_count != item[1]:
                     print('\nNumber of Words:', item[1])
                     last_count = item[1]
                 index = item[0]
                 print(index, self.docs_dict[index])
+                showed_results_num += 1
         return result_set
 
 
@@ -386,6 +404,7 @@ class IR:
             tenses.add('می' + past_root + post)
             tenses.add('نمی' + past_root + post)
         # present verbs
+        tenses.add(present_root)
         present_verb_posts = ['م', 'ی', 'د', 'یم', 'ید', 'ند']
         if present_root == 'ا' or present_root == 'گو' or present_root.endswith('ا'):
             present_root = present_root + 'ی'

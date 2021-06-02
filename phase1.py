@@ -1,6 +1,6 @@
 import ir_algorithms
 
-file_name = 'IR_Spring2021_ph12_7k.xlsx'
+file_name = 'data\\IR_Spring2021_ph12_7k.xlsx'
 
 def main():
     while(True):
